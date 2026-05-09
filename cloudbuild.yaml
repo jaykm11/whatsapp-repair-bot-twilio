@@ -28,14 +28,19 @@ steps:
       - --region=us-central1
       - --platform=managed
       - --allow-unauthenticated
-      - --set-secrets=WHATSAPP_TOKEN=whatsapp-token:latest,GEMINI_API_KEY=gemini-api-key:latest,PHONE_NUMBER_ID=phone-number-id:latest,VERIFY_TOKEN=verify-token:latest
-      - --set-env-vars=LOG_LEVEL=INFO,WHATSAPP_API_VERSION=v21.0
+      - --set-secrets=TWILIO_ACCOUNT_SID=twilio-account-sid:latest,TWILIO_AUTH_TOKEN=twilio-auth-token:latest,TWILIO_WHATSAPP_NUMBER=twilio-whatsapp-number:latest,GEMINI_API_KEY=gemini-api-key:latest
+      - --set-env-vars=LOG_LEVEL=INFO
       - --memory=512Mi
       - --cpu=1
       - --min-instances=0
       - --max-instances=10
       - --timeout=60
       - --startup-cpu-boost
+
+options:
+  # Required when a custom service account is specified — stores logs in a
+  # regional bucket owned by your project instead of the default GCS bucket.
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
 
 images:
   - "gcr.io/$PROJECT_ID/whatsapp-repair-bot:$COMMIT_SHA"
