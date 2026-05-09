@@ -31,6 +31,7 @@ steps:
       - --set-env-vars=LOG_LEVEL=INFO
       - --memory=512Mi
       - --cpu=1
+      - --no-cpu-throttling
       - --min-instances=0
       - --max-instances=10
       - --timeout=60
