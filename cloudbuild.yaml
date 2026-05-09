@@ -21,8 +21,7 @@ steps:
     entrypoint: gcloud
     args:
       - run
-      - services
-      - update
+      - deploy
       - whatsapp-repair-bot
       - --image=gcr.io/$PROJECT_ID/whatsapp-repair-bot:$COMMIT_SHA
       - --region=us-central1
@@ -35,7 +34,6 @@ steps:
       - --min-instances=0
       - --max-instances=10
       - --timeout=60
-      - --startup-cpu-boost
 
 options:
   # Required when a custom service account is specified — stores logs in a
