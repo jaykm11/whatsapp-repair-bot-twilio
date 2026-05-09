@@ -12,7 +12,7 @@ import PIL.Image
 
 from app.config import settings
 
-GEMINI_TIMEOUT_SECONDS = 30
+GEMINI_TIMEOUT_SECONDS = 50
 
 logger = logging.getLogger(__name__)
 
@@ -89,8 +89,10 @@ If the image doesn't show a plumbing or HVAC issue, politely explain that you ca
             pil_image.load()
 
             logger.info("Calling Gemini API (timeout=%ds)...", GEMINI_TIMEOUT_SECONDS)
+            # generate_content_async uses gRPC which can stall on Cloud Run.
+            # Running the sync version in a thread pool is more reliable.
             response = await asyncio.wait_for(
-                self.model.generate_content_async([full_prompt, pil_image]),
+                asyncio.to_thread(self.model.generate_content, [full_prompt, pil_image]),
                 timeout=GEMINI_TIMEOUT_SECONDS,
             )
 
