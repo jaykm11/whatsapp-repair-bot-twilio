@@ -94,7 +94,8 @@ async def handle_image_message(message: MessageContent, sender: str):
         user_description = message.body or ""
 
         logger.info("Sending image to Gemini for analysis")
-        analysis = await gemini_service.analyze_image(image_bytes, user_description)
+        mime_type = message.media_content_type or "image/jpeg"
+        analysis = await gemini_service.analyze_image(image_bytes, user_description, mime_type)
 
         profession_type = get_profession_type(analysis["full_response"])
         severity = analysis.get("severity", "Medium")

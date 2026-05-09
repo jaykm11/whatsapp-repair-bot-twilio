@@ -1,6 +1,6 @@
 """
 Gemini AI Service
-Multimodal image analysis using Google's Gemini 1.5 Pro
+Multimodal image analysis using Google's Gemini 1.5 Flash
 """
 
 import logging
@@ -16,7 +16,7 @@ class GeminiService:
     def __init__(self):
         """Initialize Gemini model"""
         genai.configure(api_key=settings.gemini_api_key)
-        self.model = genai.GenerativeModel("gemini-3.1-pro-preview")
+        self.model = genai.GenerativeModel("gemini-1.5-flash")
 
         # Master persona prompt for household repairs
         self.system_prompt = """You are a Master Plumber and HVAC Technician with 25+ years of experience diagnosing household issues.
@@ -56,32 +56,36 @@ Format your response exactly as follows:
 If the image doesn't show a plumbing or HVAC issue, politely explain that you can only diagnose household repair issues.
 """
 
-    async def analyze_image(self, image_bytes: bytes, user_message: str = "") -> dict:
+    async def analyze_image(
+        self,
+        image_bytes: bytes,
+        user_message: str = "",
+        mime_type: str = "image/jpeg",
+    ) -> dict:
         """
-        Analyze a household issue from an image
+        Analyze a household issue from an image.
 
         Args:
-            image_bytes: Image data as bytes
+            image_bytes:  Image data as bytes
             user_message: Optional text message from user describing the issue
+            mime_type:    MIME type of the image (e.g. image/jpeg, image/png)
 
         Returns:
-            dict with 'homeowner_brief' and 'pro_brief' keys
+            dict with 'homeowner_brief', 'pro_brief', 'severity', 'full_response'
         """
         try:
-            logger.info("Analyzing image with Gemini AI")
+            logger.info("Analyzing image with Gemini AI (mime_type=%s)", mime_type)
 
-            # Construct the full prompt
             user_context = f"\nUser's description: {user_message}" if user_message else ""
             full_prompt = f"{self.system_prompt}{user_context}\n\nAnalyze the image and provide your diagnosis:"
 
-            # Prepare the image for Gemini
             image_part = {
-                "mime_type": "image/jpeg",  # Assuming JPEG, can be made dynamic
-                "data": image_bytes
+                "mime_type": mime_type,
+                "data": image_bytes,
             }
 
-            # Generate response
-            response = self.model.generate_content([full_prompt, image_part])
+            # Use the async variant so we don't block the event loop
+            response = await self.model.generate_content_async([full_prompt, image_part])
 
             logger.info("Gemini analysis completed successfully")
 
