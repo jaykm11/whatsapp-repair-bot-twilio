@@ -1,31 +1,28 @@
 """
 Gemini AI Service
-Multimodal image analysis using Google's Gemini 1.5 Flash
+Multimodal image analysis using Google's Gemini 2.5 Flash (google-genai SDK)
 """
 
 import asyncio
-import io
 import logging
 
-import google.generativeai as genai
-import PIL.Image
+from google import genai
+from google.genai import types
 
 from app.config import settings
 
-GEMINI_TIMEOUT_SECONDS = 50
-
 logger = logging.getLogger(__name__)
+
+GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_TIMEOUT_SECONDS = 50
 
 
 class GeminiService:
     """Service for analyzing household issues using Gemini AI"""
 
     def __init__(self):
-        """Initialize Gemini model"""
-        genai.configure(api_key=settings.gemini_api_key)
-        self.model = genai.GenerativeModel("gemini-1.5-flash")
+        self.client = genai.Client(api_key=settings.gemini_api_key)
 
-        # Master persona prompt for household repairs
         self.system_prompt = """You are a Master Plumber and HVAC Technician with 25+ years of experience diagnosing household issues.
 
 You specialize in identifying plumbing problems (leaks, clogs, pipe damage, water heaters, fixtures) and HVAC issues (heating, cooling, ventilation, ductwork, thermostats).
@@ -67,6 +64,7 @@ If the image doesn't show a plumbing or HVAC issue, politely explain that you ca
         self,
         image_bytes: bytes,
         user_message: str = "",
+        mime_type: str = "image/jpeg",
     ) -> dict:
         """
         Analyze a household issue from an image.
@@ -74,35 +72,42 @@ If the image doesn't show a plumbing or HVAC issue, politely explain that you ca
         Args:
             image_bytes:  Image data as bytes
             user_message: Optional text message from user describing the issue
+            mime_type:    MIME type of the image (default image/jpeg)
 
         Returns:
             dict with 'homeowner_brief', 'pro_brief', 'severity', 'full_response'
         """
         try:
-            logger.info("Analyzing image with Gemini AI (%d bytes)", len(image_bytes))
+            logger.info(
+                "Analyzing image with Gemini %s (%d bytes)", GEMINI_MODEL, len(image_bytes)
+            )
 
             user_context = f"\nUser's description: {user_message}" if user_message else ""
-            full_prompt = f"{self.system_prompt}{user_context}\n\nAnalyze the image and provide your diagnosis:"
+            prompt_text = (
+                f"{self.system_prompt}{user_context}\n\nAnalyze the image and provide your diagnosis:"
+            )
 
-            # Open and fully load the image (PIL is lazy by default)
-            pil_image = PIL.Image.open(io.BytesIO(image_bytes))
-            pil_image.load()
+            contents = [
+                types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                prompt_text,
+            ]
 
             logger.info("Calling Gemini API (timeout=%ds)...", GEMINI_TIMEOUT_SECONDS)
-            # generate_content_async uses gRPC which can stall on Cloud Run.
-            # Running the sync version in a thread pool is more reliable.
+
+            # Run sync client in thread pool — avoids gRPC async issues on Cloud Run
             response = await asyncio.wait_for(
-                asyncio.to_thread(self.model.generate_content, [full_prompt, pil_image]),
+                asyncio.to_thread(
+                    self.client.models.generate_content,
+                    model=GEMINI_MODEL,
+                    contents=contents,
+                ),
                 timeout=GEMINI_TIMEOUT_SECONDS,
             )
 
             logger.info("Gemini analysis completed successfully")
 
-            # Parse the response into homeowner and pro sections
             full_response = response.text
-            parsed_response = self._parse_response(full_response)
-
-            return parsed_response
+            return self._parse_response(full_response)
 
         except asyncio.TimeoutError:
             logger.error("Gemini API timed out after %ds", GEMINI_TIMEOUT_SECONDS)
@@ -115,58 +120,49 @@ If the image doesn't show a plumbing or HVAC issue, politely explain that you ca
 
     def _parse_response(self, response_text: str) -> dict:
         """
-        Parse Gemini response into structured format
-
-        Args:
-            response_text: Full text response from Gemini
+        Parse Gemini response into structured homeowner/pro sections.
 
         Returns:
-            dict with 'homeowner_brief', 'pro_brief', 'severity', and 'full_response'
+            dict with 'homeowner_brief', 'pro_brief', 'severity', 'full_response'
         """
         try:
-            # Split on the headers
             parts = response_text.split("**PRO BRIEF:**")
 
             if len(parts) == 2:
                 homeowner_section = parts[0].replace("**HOMEOWNER BRIEF:**", "").strip()
                 pro_section = parts[1].strip()
 
-                # Extract severity from pro section
-                severity = "Medium"  # Default
-                if "Severity:" in pro_section or "**Severity:**" in pro_section:
-                    for line in pro_section.split('\n'):
-                        if 'severity' in line.lower():
-                            if 'high' in line.lower():
-                                severity = "High"
-                            elif 'low' in line.lower():
-                                severity = "Low"
-                            elif 'medium' in line.lower():
-                                severity = "Medium"
-                            break
+                severity = "Medium"
+                for line in pro_section.split("\n"):
+                    if "severity" in line.lower():
+                        if "high" in line.lower():
+                            severity = "High"
+                        elif "low" in line.lower():
+                            severity = "Low"
+                        break
 
                 return {
                     "homeowner_brief": homeowner_section,
                     "pro_brief": pro_section,
                     "severity": severity,
-                    "full_response": response_text
+                    "full_response": response_text,
                 }
             else:
-                # If parsing fails, return the whole response
                 logger.warning("Could not parse Gemini response into sections")
                 return {
                     "homeowner_brief": response_text,
                     "pro_brief": "See full response above",
                     "severity": "Medium",
-                    "full_response": response_text
+                    "full_response": response_text,
                 }
 
         except Exception as e:
-            logger.error(f"Error parsing Gemini response: {e}")
+            logger.error("Error parsing Gemini response: %s", e)
             return {
                 "homeowner_brief": response_text,
                 "pro_brief": "Error parsing response",
                 "severity": "Medium",
-                "full_response": response_text
+                "full_response": response_text,
             }
 
 
