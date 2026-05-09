@@ -21,11 +21,13 @@ _TWILIO_API_BASE = "https://api.twilio.com/2010-04-01"
 class WhatsAppService:
     """Service for interacting with the Twilio WhatsApp API."""
 
-    def __init__(self):
-        self._auth = (settings.twilio_account_sid, settings.twilio_auth_token)
-        self._messages_url = (
-            f"{_TWILIO_API_BASE}/Accounts/{settings.twilio_account_sid}/Messages.json"
-        )
+    @property
+    def _auth(self):
+        return (settings.twilio_account_sid, settings.twilio_auth_token)
+
+    @property
+    def _messages_url(self):
+        return f"{_TWILIO_API_BASE}/Accounts/{settings.twilio_account_sid}/Messages.json"
 
     async def download_media(self, media_url: str) -> bytes:
         """

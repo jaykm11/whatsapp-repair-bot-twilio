@@ -21,7 +21,7 @@ class GeminiService:
     """Service for analyzing household issues using Gemini AI"""
 
     def __init__(self):
-        self.client = genai.Client(api_key=settings.gemini_api_key)
+        self._client: genai.Client | None = None
 
         self.system_prompt = """You are a Master Plumber and HVAC Technician with 25+ years of experience diagnosing household issues.
 
@@ -59,6 +59,13 @@ Format your response exactly as follows:
 
 If the image doesn't show a plumbing or HVAC issue, politely explain that you can only diagnose household repair issues.
 """
+
+    @property
+    def client(self) -> genai.Client:
+        """Create the Gemini client on first use so startup never crashes."""
+        if self._client is None:
+            self._client = genai.Client(api_key=settings.gemini_api_key)
+        return self._client
 
     async def analyze_image(
         self,
