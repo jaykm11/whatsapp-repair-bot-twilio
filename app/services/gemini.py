@@ -3,8 +3,12 @@ Gemini AI Service
 Multimodal image analysis using Google's Gemini 1.5 Flash
 """
 
+import io
 import logging
+
 import google.generativeai as genai
+import PIL.Image
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -60,7 +64,6 @@ If the image doesn't show a plumbing or HVAC issue, politely explain that you ca
         self,
         image_bytes: bytes,
         user_message: str = "",
-        mime_type: str = "image/jpeg",
     ) -> dict:
         """
         Analyze a household issue from an image.
@@ -68,24 +71,21 @@ If the image doesn't show a plumbing or HVAC issue, politely explain that you ca
         Args:
             image_bytes:  Image data as bytes
             user_message: Optional text message from user describing the issue
-            mime_type:    MIME type of the image (e.g. image/jpeg, image/png)
 
         Returns:
             dict with 'homeowner_brief', 'pro_brief', 'severity', 'full_response'
         """
         try:
-            logger.info("Analyzing image with Gemini AI (mime_type=%s)", mime_type)
+            logger.info("Analyzing image with Gemini AI (%d bytes)", len(image_bytes))
 
             user_context = f"\nUser's description: {user_message}" if user_message else ""
             full_prompt = f"{self.system_prompt}{user_context}\n\nAnalyze the image and provide your diagnosis:"
 
-            image_part = {
-                "mime_type": mime_type,
-                "data": image_bytes,
-            }
+            # PIL.Image is the most reliable format for the google-generativeai SDK
+            pil_image = PIL.Image.open(io.BytesIO(image_bytes))
 
             # Use the async variant so we don't block the event loop
-            response = await self.model.generate_content_async([full_prompt, image_part])
+            response = await self.model.generate_content_async([full_prompt, pil_image])
 
             logger.info("Gemini analysis completed successfully")
 
