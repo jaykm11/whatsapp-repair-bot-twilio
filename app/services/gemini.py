@@ -3,6 +3,7 @@ Gemini AI Service
 Multimodal image analysis using Google's Gemini 1.5 Flash
 """
 
+import asyncio
 import io
 import logging
 
@@ -10,6 +11,8 @@ import google.generativeai as genai
 import PIL.Image
 
 from app.config import settings
+
+GEMINI_TIMEOUT_SECONDS = 30
 
 logger = logging.getLogger(__name__)
 
@@ -81,11 +84,15 @@ If the image doesn't show a plumbing or HVAC issue, politely explain that you ca
             user_context = f"\nUser's description: {user_message}" if user_message else ""
             full_prompt = f"{self.system_prompt}{user_context}\n\nAnalyze the image and provide your diagnosis:"
 
-            # PIL.Image is the most reliable format for the google-generativeai SDK
+            # Open and fully load the image (PIL is lazy by default)
             pil_image = PIL.Image.open(io.BytesIO(image_bytes))
+            pil_image.load()
 
-            # Use the async variant so we don't block the event loop
-            response = await self.model.generate_content_async([full_prompt, pil_image])
+            logger.info("Calling Gemini API (timeout=%ds)...", GEMINI_TIMEOUT_SECONDS)
+            response = await asyncio.wait_for(
+                self.model.generate_content_async([full_prompt, pil_image]),
+                timeout=GEMINI_TIMEOUT_SECONDS,
+            )
 
             logger.info("Gemini analysis completed successfully")
 
@@ -95,8 +102,13 @@ If the image doesn't show a plumbing or HVAC issue, politely explain that you ca
 
             return parsed_response
 
+        except asyncio.TimeoutError:
+            logger.error("Gemini API timed out after %ds", GEMINI_TIMEOUT_SECONDS)
+            raise RuntimeError(
+                f"Gemini API did not respond within {GEMINI_TIMEOUT_SECONDS} seconds"
+            )
         except Exception as e:
-            logger.error(f"Error analyzing image with Gemini: {e}", exc_info=True)
+            logger.error("Error analyzing image with Gemini: %s", e, exc_info=True)
             raise
 
     def _parse_response(self, response_text: str) -> dict:
