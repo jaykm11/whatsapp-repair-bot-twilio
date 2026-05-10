@@ -27,7 +27,7 @@ steps:
       - --region=us-central1
       - --platform=managed
       - --allow-unauthenticated
-      - --set-secrets=TWILIO_ACCOUNT_SID=twilio-account-sid:latest,TWILIO_AUTH_TOKEN=twilio-auth-token:latest,TWILIO_WHATSAPP_NUMBER=twilio-whatsapp-number:latest,GEMINI_API_KEY=gemini-api-key:latest
+      - --set-secrets=TWILIO_ACCOUNT_SID=TWILIO_ACCOUNT_SID:latest,TWILIO_AUTH_TOKEN=TWILIO_AUTH_TOKEN:latest,TWILIO_WHATSAPP_NUMBER=TWILIO_WHATSAPP_NUMBER:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest
       - --set-env-vars=LOG_LEVEL=INFO
       - --memory=512Mi
       - --cpu=1
