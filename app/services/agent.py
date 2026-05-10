@@ -112,17 +112,17 @@ async def handle_image_message(message: MessageContent, sender: str):
             recommendations, urgency_note
         )
 
-        response_message = f"""🏠 *Household Issue Diagnosis*
+        homeowner_msg = f"🏠 *Household Issue Diagnosis*\n\n{analysis['homeowner_brief']}"
+        pro_msg = f"📋 *For Our Repair Team:*\n\n{analysis['pro_brief']}{professional_section}"
 
-{analysis['homeowner_brief']}
+        # Safety truncation — Twilio WhatsApp limit is 1600 chars
+        if len(homeowner_msg) > 1550:
+            homeowner_msg = homeowner_msg[:1547] + "..."
+        if len(pro_msg) > 1550:
+            pro_msg = pro_msg[:1547] + "..."
 
----
-
-📋 *For Our Repair Team:*
-
-{analysis['pro_brief']}{professional_section}"""
-
-        await whatsapp_service.send_text_message(sender, response_message)
+        await whatsapp_service.send_text_message(sender, homeowner_msg)
+        await whatsapp_service.send_text_message(sender, pro_msg)
         logger.info("Successfully processed image for %s", sender)
 
     except Exception as e:
