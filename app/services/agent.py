@@ -6,6 +6,7 @@ Coordinates WhatsApp message handling, media processing, and AI analysis.
 import logging
 from app.models import MessageContent
 from app.services.conversation_store import conversation_store
+from app.services.memory_bank import memory_bank_service
 from app.services.whatsapp import whatsapp_service
 from app.services.gemini import gemini_service
 from app.services.professional_matcher import (
@@ -45,28 +46,29 @@ async def process_message(message: MessageContent, sender: str):
 
 async def handle_text_message(message: MessageContent, sender: str):
     """Handle incoming text messages."""
-    text_body = message.body.lower().strip()
-    logger.info("Text message from %s: %s", sender, text_body)
+    raw = (message.body or "").strip()
+    text_body = raw.lower()
+    logger.info("Text message from %s: %s", sender, text_body[:80])
 
     if text_body in {"help", "start", "hello", "hi"}:
-        welcome_message = """?? Welcome to Houston Home Repair AI!
+        welcome_message = """Welcome to Houston Home Repair AI!
 
 I can help diagnose household plumbing and HVAC issues.
 
 *How to use:*
-?? Send me a photo of your household issue
-?? Optionally include a description of the problem
+- Send me a photo of your household issue
+- Optionally include a description of the problem
 
 I'll analyze the image and provide:
-? Simple explanation for you
-? Technical brief for our repair team
+- A simple explanation for you
+- A technical brief for our repair team
 
 *Examples:*
 "Here's my leaking pipe"
 "AC not cooling properly"
 "Water heater making noise"
 
-Send a photo to get started! ??"""
+Send a photo to get started!"""
         await conversation_store.append_turn(sender, "user", raw or text_body)
         await conversation_store.append_turn(sender, "assistant", welcome_message)
         await whatsapp_service.send_text_message(sender, welcome_message)
@@ -79,8 +81,8 @@ Send a photo to get started! ??"""
     except Exception as e:
         logger.error("Conversational reply failed: %s", e, exc_info=True)
         reply = (
-            "I had trouble thinking that through?please try again in a moment, "
-            "or send a photo of the issue so I can diagnose it. ??"
+            "I had trouble thinking that through - please try again in a moment, "
+            "or send a photo of the issue so I can diagnose it."
         )
     await conversation_store.append_turn(sender, "user", raw)
     await conversation_store.append_turn(sender, "assistant", reply)
@@ -92,7 +94,7 @@ Send a photo to get started! ??"""
 
 
 async def handle_image_message(message: MessageContent, sender: str):
-    """Handle incoming image messages ? the main use case."""
+    """Handle incoming image messages - the main use case."""
     try:
         if not message.media_url:
             logger.error("Image message has no media URL")
@@ -102,12 +104,12 @@ async def handle_image_message(message: MessageContent, sender: str):
         user_description = (message.body or "").strip()
         photo_note = "[Sent a photo]"
         if user_description:
-            photo_note = f"[Sent a photo ? note: {user_description}]"
+            photo_note = f"[Sent a photo - note: {user_description}]"
         await conversation_store.append_turn(sender, "user", photo_note)
 
         await whatsapp_service.send_text_message(
             sender,
-            "?? Analyzing your image... This may take a moment.",
+            "Analyzing your image... This may take a moment.",
         )
 
         logger.info("Downloading image from Twilio media URL")
@@ -132,10 +134,10 @@ async def handle_image_message(message: MessageContent, sender: str):
             recommendations, urgency_note
         )
 
-        homeowner_msg = f"?? *Household Issue Diagnosis*\n\n{analysis['homeowner_brief']}"
-        pro_msg = f"?? *For Our Repair Team:*\n\n{analysis['pro_brief']}{professional_section}"
+        homeowner_msg = f"*Household Issue Diagnosis*\n\n{analysis['homeowner_brief']}"
+        pro_msg = f"*For Our Repair Team:*\n\n{analysis['pro_brief']}{professional_section}"
 
-        # Safety truncation ? Twilio WhatsApp limit is 1600 chars
+        # Safety truncation - Twilio WhatsApp limit is 1600 chars
         if len(homeowner_msg) > 1550:
             homeowner_msg = homeowner_msg[:1547] + "..."
         if len(pro_msg) > 1550:
@@ -172,8 +174,8 @@ async def handle_video_message(message: MessageContent, sender: str):
     """Handle incoming video messages."""
     await whatsapp_service.send_text_message(
         sender,
-        "?? Video received! For best results, please send a clear photo of the issue instead. "
-        "I can analyze images more accurately. Thanks! ??",
+        "Video received. For best results, please send a clear photo of the issue instead. "
+        "I can analyze images more accurately. Thanks!",
     )
 
 
@@ -182,7 +184,7 @@ async def send_unsupported_message(sender: str):
     await whatsapp_service.send_text_message(
         sender,
         "I can only analyze photos of household issues right now. "
-        "Please send an image showing the problem! ??",
+        "Please send an image showing the problem.",
     )
 
 
@@ -190,6 +192,6 @@ async def send_error_message(sender: str):
     """Send a user-friendly error message."""
     await whatsapp_service.send_text_message(
         sender,
-        "?? Sorry, something went wrong while processing your request. "
+        "Sorry, something went wrong while processing your request. "
         "Please try again, or contact us directly at (Houston) 555-REPAIR.",
     )
