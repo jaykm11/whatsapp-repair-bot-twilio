@@ -65,7 +65,9 @@ I'll analyze the image and provide:
 "AC not cooling properly"
 "Water heater making noise"
 
-Send a photo to get started! 🔧"""
+Send a photo to get started! 🔧
+
+Build marker: banana-test-2026-05-16"""
         await whatsapp_service.send_text_message(sender, welcome_message)
     else:
         await whatsapp_service.send_text_message(
