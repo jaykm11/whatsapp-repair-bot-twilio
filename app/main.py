@@ -47,6 +47,10 @@ async def lifespan(app: FastAPI):
         settings.conversation_backend,
         settings.conversation_max_messages,
     )
+    if (settings.vertex_agent_engine_name or "").strip():
+        logger.info("Memory Bank enabled (region=%s)", settings.google_cloud_region)
+    else:
+        logger.info("Memory Bank disabled (VERTEX_AGENT_ENGINE_NAME not set)")
     yield
 
 

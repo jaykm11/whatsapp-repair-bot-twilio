@@ -126,6 +126,7 @@ Keep the total response under 800 characters. If the image doesn't show a plumbi
         self,
         prior_turns: list[dict[str, str]],
         user_message: str,
+        memory_facts: list[str] | None = None,
     ) -> str:
         """
         Conversational reply using recent history + current user message (text only).
@@ -135,7 +136,12 @@ Keep the total response under 800 characters. If the image doesn't show a plumbi
         if not user_message:
             return "Send me a message or a photo of the issue and I will help."
 
-        lines = [CHAT_SYSTEM, "", "Conversation so far:"]
+        lines = [CHAT_SYSTEM]
+        if memory_facts:
+            lines.extend(["", "Long-term facts about this customer:"])
+            for fact in memory_facts[:10]:
+                lines.append(f"- {fact}")
+        lines.extend(["", "Conversation so far:"])
         for t in prior_turns[-20:]:
             role = t.get("role", "")
             content = (t.get("content") or "").strip()

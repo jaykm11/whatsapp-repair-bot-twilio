@@ -7,3 +7,4 @@ python-dotenv==1.2.2
 pydantic==2.12.4
 pydantic-settings==2.14.1
 google-cloud-firestore==2.19.0
+google-cloud-aiplatform>=1.111.0

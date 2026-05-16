@@ -44,6 +44,16 @@ class Settings(BaseSettings):
         description="GCP project id for Firestore (optional; Cloud Run sets GOOGLE_CLOUD_PROJECT).",
     )
 
+    # Vertex AI Memory Bank (optional; set on Cloud Run when Reasoning Engine exists)
+    vertex_agent_engine_name: str = Field(
+        default="",
+        description="Full resource name: projects/.../locations/.../reasoningEngines/...",
+    )
+    google_cloud_region: str = Field(
+        default="us-central1",
+        description="Vertex AI region (must match Reasoning Engine location).",
+    )
+
     # Server configuration — Cloud Run injects PORT=8080
     port: int = Field(default=8080, description="Server port")
     log_level: str = Field(default="INFO", description="Logging level")
