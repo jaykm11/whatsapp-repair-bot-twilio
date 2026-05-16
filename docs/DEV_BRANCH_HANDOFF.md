@@ -87,9 +87,7 @@ Memory Bank disabled (VERTEX_AGENT_ENGINE_NAME not set)
 1. Merge or build from **`dev`** (Cloud Build → updates us-central1 container).
 2. Confirm Cloud Run env vars (see GCP table above).
 3. Deploy new revision.
-4. Send WhatsApp `hi`, then a follow-up text question.
-5. Confirm Firestore → **Data** → collection `whatsapp_repair_chats`.
-6. After several messages, check Memory Bank in Vertex / logs (generation is async).
+4. Run the tests in **[TESTING_FIRESTORE_MEMORY_BANK.md](./TESTING_FIRESTORE_MEMORY_BANK.md)**.
 
 ---
 
