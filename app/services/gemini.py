@@ -16,6 +16,12 @@ logger = logging.getLogger(__name__)
 GEMINI_MODEL = "gemini-2.5-flash"
 GEMINI_TIMEOUT_SECONDS = 50
 
+CHAT_SYSTEM = """You are a friendly Houston home repair assistant on WhatsApp.
+You help with plumbing and HVAC questions. Be concise (short paragraphs, no walls of text).
+Reference what the user said earlier in the conversation when it helps.
+If they need a visual diagnosis, ask them to send a clear photo of the issue.
+If you are unsure, say so. Do not invent safety-critical details."""
+
 
 class GeminiService:
     """Service for analyzing household issues using Gemini AI"""
@@ -114,6 +120,52 @@ Keep the total response under 800 characters. If the image doesn't show a plumbi
             )
         except Exception as e:
             logger.error("Error analyzing image with Gemini: %s", e, exc_info=True)
+            raise
+
+    async def chat_reply(
+        self,
+        prior_turns: list[dict[str, str]],
+        user_message: str,
+    ) -> str:
+        """
+        Conversational reply using recent history + current user message (text only).
+        prior_turns: [{"role": "user"|"assistant", "content": "..."}] excluding the current message.
+        """
+        user_message = (user_message or "").strip()
+        if not user_message:
+            return "Send me a message or a photo of the issue and I will help."
+
+        lines = [CHAT_SYSTEM, "", "Conversation so far:"]
+        for t in prior_turns[-20:]:
+            role = t.get("role", "")
+            content = (t.get("content") or "").strip()
+            if not content:
+                continue
+            if len(content) > 500:
+                content = content[:497] + "..."
+            label = "User" if role == "user" else "Assistant"
+            lines.append(f"{label}: {content}")
+        lines.extend(["", f"User: {user_message}", "", "Assistant:"])
+        prompt = "\n".join(lines)
+
+        try:
+            response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    self.client.models.generate_content,
+                    model=GEMINI_MODEL,
+                    contents=prompt,
+                ),
+                timeout=GEMINI_TIMEOUT_SECONDS,
+            )
+            text = (response.text or "").strip()
+            if len(text) > 1500:
+                text = text[:1497] + "..."
+            return text or "I am not sure how to answer that—try sending a photo of the issue."
+        except asyncio.TimeoutError:
+            logger.error("Gemini chat timed out after %ds", GEMINI_TIMEOUT_SECONDS)
+            raise
+        except Exception as e:
+            logger.error("Gemini chat error: %s", e, exc_info=True)
             raise
 
     def _parse_response(self, response_text: str) -> dict:

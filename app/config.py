@@ -28,6 +28,22 @@ class Settings(BaseSettings):
     # Gemini AI credentials
     gemini_api_key: str = Field(default="", description="Google Gemini API key")
 
+    # Conversation memory: memory (default, single-process) or firestore (Cloud Run)
+    conversation_backend: str = Field(
+        default="memory",
+        description='Conversation persistence: "memory" or "firestore"',
+    )
+    conversation_max_messages: int = Field(
+        default=24,
+        ge=4,
+        le=200,
+        description="Max stored messages per user (user + assistant turns).",
+    )
+    google_cloud_project: str = Field(
+        default="",
+        description="GCP project id for Firestore (optional; Cloud Run sets GOOGLE_CLOUD_PROJECT).",
+    )
+
     # Server configuration — Cloud Run injects PORT=8080
     port: int = Field(default=8080, description="Server port")
     log_level: str = Field(default="INFO", description="Logging level")

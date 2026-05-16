@@ -5,6 +5,7 @@ Coordinates WhatsApp message handling, media processing, and AI analysis.
 
 import logging
 from app.models import MessageContent
+from app.services.conversation_store import conversation_store
 from app.services.whatsapp import whatsapp_service
 from app.services.gemini import gemini_service
 from app.services.professional_matcher import (
@@ -65,16 +66,24 @@ I'll analyze the image and provide:
 "AC not cooling properly"
 "Water heater making noise"
 
-Send a photo to get started! 🔧
-
-Build marker: banana-test-2026-05-16"""
+Send a photo to get started! 🔧"""
+        await conversation_store.append_turn(sender, "user", raw or text_body)
+        await conversation_store.append_turn(sender, "assistant", welcome_message)
         await whatsapp_service.send_text_message(sender, welcome_message)
-    else:
-        await whatsapp_service.send_text_message(
-            sender,
-            "Thanks for your message! To diagnose the issue, please send me a photo of the problem. "
-            "You can include a description with the photo too. 📸",
+        return
+
+    prior = await conversation_store.get_prior_turns(sender)
+    try:
+        reply = await gemini_service.chat_reply(prior, raw)
+    except Exception as e:
+        logger.error("Conversational reply failed: %s", e, exc_info=True)
+        reply = (
+            "I had trouble thinking that through—please try again in a moment, "
+            "or send a photo of the issue so I can diagnose it. 📸"
         )
+    await conversation_store.append_turn(sender, "user", raw)
+    await conversation_store.append_turn(sender, "assistant", reply)
+    await whatsapp_service.send_text_message(sender, reply)
 
 
 async def handle_image_message(message: MessageContent, sender: str):
@@ -85,6 +94,12 @@ async def handle_image_message(message: MessageContent, sender: str):
             await send_error_message(sender)
             return
 
+        user_description = (message.body or "").strip()
+        photo_note = "[Sent a photo]"
+        if user_description:
+            photo_note = f"[Sent a photo — note: {user_description}]"
+        await conversation_store.append_turn(sender, "user", photo_note)
+
         await whatsapp_service.send_text_message(
             sender,
             "🔍 Analyzing your image... This may take a moment.",
@@ -92,8 +107,6 @@ async def handle_image_message(message: MessageContent, sender: str):
 
         logger.info("Downloading image from Twilio media URL")
         image_bytes = await whatsapp_service.download_media(message.media_url)
-
-        user_description = message.body or ""
 
         logger.info("Sending image to Gemini for analysis")
         mime_type = message.media_content_type or "image/jpeg"
@@ -125,6 +138,17 @@ async def handle_image_message(message: MessageContent, sender: str):
 
         await whatsapp_service.send_text_message(sender, homeowner_msg)
         await whatsapp_service.send_text_message(sender, pro_msg)
+
+        memory_summary = (analysis.get("homeowner_brief") or "").strip()
+        if len(memory_summary) > 400:
+            memory_summary = memory_summary[:397] + "..."
+        if memory_summary:
+            await conversation_store.append_turn(
+                sender,
+                "assistant",
+                f"(Diagnosis from your photo) {memory_summary}",
+            )
+
         logger.info("Successfully processed image for %s", sender)
 
     except Exception as e:

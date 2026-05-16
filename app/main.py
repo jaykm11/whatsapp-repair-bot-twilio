@@ -42,6 +42,11 @@ async def lifespan(app: FastAPI):
         logger.error("Missing required credentials: %s — API calls will fail.", missing)
     else:
         logger.info("All credentials loaded. Service ready.")
+    logger.info(
+        "Conversation backend=%s max_messages=%s",
+        settings.conversation_backend,
+        settings.conversation_max_messages,
+    )
     yield
 
 
