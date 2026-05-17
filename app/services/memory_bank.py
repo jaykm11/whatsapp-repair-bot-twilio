@@ -52,7 +52,7 @@ class MemoryBankService:
             self._client = vertexai.Client(project=project, location=self._region)
         return self._client
 
-    async def retrieve_facts(self, user_phone: str, query: str = "") -> list[str]:
+    async def retrieve_facts(self, user_phone: str, search_text: str = "") -> list[str]:
         """Return memory facts for this user; empty if disabled or on error."""
         if not self.enabled:
             return []
@@ -62,17 +62,18 @@ class MemoryBankService:
         def _retrieve() -> list[str]:
             client = self._get_client()
             facts: list[str] = []
-            q = (query or "").strip()
+            q = (search_text or "").strip()
             if q:
                 results = client.agent_engines.memories.retrieve(
                     name=self._engine_name,
                     scope=scope,
-                    similarity_search_query=q,
+                    similarity_search_params={"search_query": q, "top_k": 12},
                 )
             else:
                 results = client.agent_engines.memories.retrieve(
                     name=self._engine_name,
                     scope=scope,
+                    simple_retrieval_params={"page_size": 12},
                 )
             for item in results:
                 mem = getattr(item, "memory", None)
