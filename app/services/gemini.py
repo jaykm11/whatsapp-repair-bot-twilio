@@ -4,7 +4,9 @@ Multimodal image analysis using Google's Gemini 2.5 Flash (google-genai SDK)
 """
 
 import asyncio
+import json
 import logging
+import os
 
 from google import genai
 from google.genai import types
@@ -16,11 +18,60 @@ logger = logging.getLogger(__name__)
 GEMINI_MODEL = "gemini-2.5-flash"
 GEMINI_TIMEOUT_SECONDS = 50
 
-CHAT_SYSTEM = """You are a friendly Houston home repair assistant on WhatsApp.
-You help with plumbing and HVAC questions. Be concise (short paragraphs, no walls of text).
-Reference what the user said earlier in the conversation when it helps.
-If they need a visual diagnosis, ask them to send a clear photo of the issue.
-If you are unsure, say so. Do not invent safety-critical details."""
+
+def _load_professionals_summary() -> str:
+    """Load professionals.json and format it as a compact directory for the prompt."""
+    try:
+        path = os.path.join(os.path.dirname(__file__), "..", "..", "professionals.json")
+        path = os.path.normpath(path)
+        with open(path) as f:
+            data = json.load(f)
+
+        lines = ["AVAILABLE PROFESSIONALS DIRECTORY:"]
+        category_labels = {
+            "plumbers": "Plumbers",
+            "hvac": "HVAC Technicians",
+            "electricians": "Electricians",
+            "handyman": "Handymen",
+        }
+        for category, label in category_labels.items():
+            pros = data.get(category, [])
+            if not pros:
+                continue
+            lines.append(f"\n{label}:")
+            for p in pros:
+                areas = ", ".join(p.get("areas", []))
+                avail = p.get("availability", "Unknown")
+                rate = p.get("hourly_rate", "")
+                rating = p.get("rating", "")
+                phone = p.get("phone", "")
+                lines.append(
+                    f"  • {p['name']} | Phone: {phone} | Areas: {areas} | "
+                    f"Avail: {avail} | Rate: {rate} | Rating: {rating}⭐"
+                )
+        return "\n".join(lines)
+    except Exception as e:
+        logger.warning("Could not load professionals.json: %s", e)
+        return ""
+
+
+_PROFESSIONALS_SUMMARY = _load_professionals_summary()
+
+CHAT_SYSTEM = f"""You are a friendly Houston home repair assistant on WhatsApp. \
+You help customers find the right repair professional and diagnose plumbing, HVAC, \
+electrical, and handyman issues.
+
+{_PROFESSIONALS_SUMMARY}
+
+GUIDELINES:
+- When asked about availability, professionals, or who to call in a specific area, \
+look up the directory above and give a direct, helpful answer with name, phone, \
+availability, and rate. Only list professionals who serve that area.
+- Be conversational and warm — like a knowledgeable friend, not a robot.
+- Keep replies concise (2-4 sentences or a short list). No walls of text.
+- If they need a visual diagnosis, ask them to send a clear photo.
+- Reference earlier conversation context when relevant.
+- If you are unsure about something, say so honestly."""
 
 
 class GeminiService:
