@@ -94,7 +94,7 @@ def recommend_professionals(
                 -p["rating"]
             )
         )
-        urgency_note = "⚠️ **HIGH URGENCY** - Showing fastest response options first"
+        urgency_note = "**HIGH URGENCY** - Showing fastest response options first"
 
     elif severity == "Medium":
         # Medium: balance of speed and cost
@@ -106,7 +106,7 @@ def recommend_professionals(
                 int(p["hourly_rate"].split('-')[0].replace('$', ''))  # Sort by base rate
             )
         )
-        urgency_note = "🔧 **MODERATE URGENCY** - Showing balanced cost/speed options"
+        urgency_note = "**MODERATE URGENCY** - Showing balanced cost/speed options"
 
     else:  # Low severity
         # Low: prioritize cost, then rating
@@ -117,7 +117,7 @@ def recommend_professionals(
                 -p["rating"]
             )
         )
-        urgency_note = "💰 **LOW URGENCY** - Showing most cost-effective options"
+        urgency_note = "**LOW URGENCY** - Showing most cost-effective options"
 
     # Take top recommendations
     recommendations = sorted_pros[:max_recommendations]
@@ -157,23 +157,23 @@ def format_professional_recommendations(
         Formatted string for WhatsApp
     """
     if not recommendations:
-        return "\n\n⚠️ No professionals found for this issue type."
+        return "\n\nNo professionals found for this issue type."
 
-    output = f"\n\n---\n\n{urgency_note}\n\n🔧 **Recommended Professionals:**\n\n"
+    output = f"\n\n---\n\n{urgency_note}\n\n**Recommended Professionals:**\n\n"
 
     for i, pro in enumerate(recommendations, 1):
-        output += f"**{i}. {pro['name']}** ⭐ {pro['rating']}★\n"
-        output += f"   📞 {pro['phone']}\n"
-        output += f"   💵 {pro['hourly_rate']}\n"
-        output += f"   ⏰ Availability: {pro['availability']}\n"
-        output += f"   📜 Credentials: {', '.join(pro['certifications'])}\n"
-        output += f"   🏘️ Serves: {', '.join(pro['areas'])}\n"
+        output += f"**{i}. {pro['name']}** (Rating: {pro['rating']})\n"
+        output += f"   Phone: {pro['phone']}\n"
+        output += f"   Rate: {pro['hourly_rate']}\n"
+        output += f"   Availability: {pro['availability']}\n"
+        output += f"   Credentials: {', '.join(pro['certifications'])}\n"
+        output += f"   Serves: {', '.join(pro['areas'])}\n"
 
         if pro.get("emergency_fee") and pro["emergency_fee"] != "N/A":
-            output += f"   ⚡ Emergency Fee: {pro['emergency_fee']}\n"
+            output += f"   Emergency fee: {pro['emergency_fee']}\n"
 
-        output += f"\n   ✅ **Pros:** {', '.join(pro['pros'])}\n"
-        output += f"   ❌ **Cons:** {', '.join(pro['cons'])}\n"
-        output += f"   💡 *Why recommended:* {pro['why_recommended']}\n\n"
+        output += f"\n   Pros: {', '.join(pro['pros'])}\n"
+        output += f"   Cons: {', '.join(pro['cons'])}\n"
+        output += f"   Why recommended: {pro['why_recommended']}\n\n"
 
     return output
