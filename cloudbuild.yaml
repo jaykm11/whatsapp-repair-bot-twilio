@@ -28,7 +28,7 @@ steps:
       - --platform=managed
       - --allow-unauthenticated
       - --set-secrets=TWILIO_ACCOUNT_SID=TWILIO_ACCOUNT_SID:latest,TWILIO_AUTH_TOKEN=TWILIO_AUTH_TOKEN:latest,TWILIO_WHATSAPP_NUMBER=TWILIO_WHATSAPP_NUMBER:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest
-      - --set-env-vars=LOG_LEVEL=INFO
+      - --set-env-vars=LOG_LEVEL=INFO,CONVERSATION_BACKEND=firestore,GOOGLE_CLOUD_PROJECT=fastapi-test-493805,GOOGLE_CLOUD_REGION=us-central1,VERTEX_AGENT_ENGINE_NAME=projects/845708853463/locations/us-central1/reasoningEngines/3314152896244744192
       - --memory=512Mi
       - --cpu=1
       - --no-cpu-throttling
